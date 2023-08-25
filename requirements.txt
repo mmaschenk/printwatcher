@@ -1,0 +1,5 @@
+PrusaLinkPy
+python-dotenv
+requests
+pyyaml
+octorest
