@@ -8,6 +8,7 @@ from prusalink import prusalink
 import requests
 import textwrap
 import octorest
+import traceback
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -137,8 +138,9 @@ def protocol_octoprint(printerinfo):
             'progress': job['progress']['completion', 0]/100,
             'jobname': job['job']['file']['name','Unknown'],
         }
-    except:
-        raise
+    except Exception as exc:
+        print(traceback.format_exc())
+        print(exc)
         state = {
             'printstate': 'unknown',
         }
