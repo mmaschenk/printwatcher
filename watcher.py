@@ -149,9 +149,9 @@ def protocol_octoprint(printerinfo):
 def init_states(settings):
     state = {}
     for m in settings:
-        state[m['printer']] = 'idle'
+        state[m['printer']] = { 'printstate': 'idle' }
 
-    return state
+    return safedict(state)
 
 def processtimes(status):
     _now = datetime.now()
@@ -186,22 +186,24 @@ def main_loop(state, settings):
         handler = globals()[handler]
         currentstate = handler(m)
 
+        laststate = state[m['printer']]
+
         print(f"Current state: {currentstate}")
 
         debuglog(f"Current state: {currentstate}")
 
-        print(f"currentstate: [{currentstate['printstate']}]. previous printstate: [{state[m['printer']]}]")
-        if currentstate['printstate'] == 'printing' and state[m['printer']] == 'printing':    
+        print(f"currentstate: [{currentstate['printstate']}]. previous printstate: [{laststate['printstate']}]")
+        if currentstate['printstate'] == 'printing' and {laststate['printstate']} == 'printing':    
             print("outputting ongoing print job")
             message = statusmessage(f"Printjob in progress on {m['printer']}", currentstate)
             messages.append(message)
             #sendmessage(message)
-        elif currentstate['printstate'] == 'printing' and state[m['printer']] != 'printing':
+        elif currentstate['printstate'] == 'printing' and {laststate['printstate']} != 'printing':
             print(f"outputting start of print job {m['printer']}")
             message = statusmessage(f"Printjob started on {m['printer']}", currentstate)
             messages.append(message)
             #sendmessage(message)
-        elif currentstate['printstate'] != 'printing' and state[m['printer']] == 'printing':
+        elif currentstate['printstate'] != 'printing' and {laststate['printstate']} == 'printing':
             print(f"outputting end of print job {m['printer']}")
             message = statusmessage(f"Printjob ended on {m['printer']}", currentstate)
             messages.append(message)
@@ -209,7 +211,7 @@ def main_loop(state, settings):
         else:
             print("no messaging needed")
 
-        state[m['printer']] = currentstate['printstate']
+        laststate['printstate'] = currentstate['printstate']
 
     if messages:
         message = "\n".join(messages)
