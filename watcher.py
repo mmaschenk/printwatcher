@@ -121,17 +121,16 @@ def protocol_octoprint(printerinfo):
         printer = safedict(client.printer())
         print(f"printer = {printer}")
 
-        progress = job['progress', {'printTime':0, 'printTimeLeft': 0}]
         try:
             printTime = job['progress']['printTime']
         except:
             printTime = 0
+        
         try:
             printTimeLeft = job['progress']['printTimeLeft']
         except:
             printTimeLeft = 0
 
-        print(f"progress = {progress}. job = {job}")
         state = {
             'printstate': 'printing' if printer['state']['flags']['printing'] else 'idle',
             'temperature': {
@@ -160,7 +159,7 @@ def protocol_octoprint(printerinfo):
 def init_states(settings):
     state = {}
     for m in settings:
-        state[m['printer']] = { 'printstate': 'idle' }
+        state[m['printer']] = { 'printstate': 'idle', 'lastsend': datetime.now() - timedelta(days=1) }
 
     return safedict(state)
 
@@ -175,7 +174,7 @@ def processtimes(status):
 
 def statusmessage(headerline,status):
     processtimes(status)
-    if status['stillprinting'] == 0:
+    if 'stillprinting' not in status or status['stillprinting'] == 0:
         finishmessage = "-- Unknown --"
     else:
         finishmessage = f"{status['time_finished']} ({formatsecondduration(status['stillprinting'])} from now)"
@@ -242,7 +241,6 @@ def main_loop(state, settings):
         if forcemessage or timesincelastmessage > limit:
             sendmessage(message=message)
             laststate['lastsend'] = datetime.now()
-
 
         laststate['printstate'] = currentstate['printstate']
         state[m['printer']] = laststate
