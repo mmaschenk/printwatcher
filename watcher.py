@@ -257,12 +257,12 @@ def main_loop(state, settings, globalsettings):
         except Exception as exc:
             timesincelastmessage = -1
 
+        laststate = currentstate
         print(f"Time since last: {timesincelastmessage}")
         if forcemessage or timesincelastmessage > limit:
             sendmessage(message=message)
             laststate['lastsend'] = datetime.now()
 
-        laststate['printstate'] = currentstate['printstate']
         state[m['printer']] = laststate
 
 
