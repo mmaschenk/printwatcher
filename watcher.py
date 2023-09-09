@@ -106,6 +106,13 @@ def protocol_prusalink(printerinfo, timeout=30):
     return state
 
 def protocol_octoprint(printerinfo):
+    def getlayerplugindata(client):
+        layer = f"{client.url}/plugin/DisplayLayerProgress/values"
+        session = client.__dict__['session']
+        
+        r = requests.get(headers=session.headers, url=layer)
+        return r.json()
+
     url = printerinfo['url']
     key = printerinfo['key']
 
@@ -121,11 +128,25 @@ def protocol_octoprint(printerinfo):
         printer = safedict(client.printer())
         print(f"printer = {printer}")
 
+        print(f"printerinfo = {printerinfo}")
+        zheight = "unknown"
+        if 'layerplugin' in printerinfo and printerinfo['layerplugin']:
+            print("Getting layer info")
+            data = getlayerplugindata(client=client)
+            print(f"Got layerinfo {data}")
+            try:
+                zheight = f"{data['height']['current']} ({data['layer']['current']}/{data['layer']['total']})"
+            except:
+                try:
+                    zheight = f"{data['height']['current']}"
+                except:
+                    pass
+
         try:
             printTime = job['progress']['printTime']
         except:
             printTime = 0
-        
+
         try:
             printTimeLeft = job['progress']['printTimeLeft']
         except:
@@ -141,7 +162,7 @@ def protocol_octoprint(printerinfo):
                 'bed': printer['temperature']['bed']['target'],
                 'nozzle': printer['temperature']['tool0']['target'],
             },
-            'z-height': 'unknown',
+            'z-height': zheight,
             'fulljobtime': printTime + printTimeLeft,
             'alreadyprinted': printTime,
             'stillprinting': printTimeLeft,
@@ -183,48 +204,49 @@ def statusmessage(headerline,status):
         <pre>
         Printjob:    {status['jobname']}
         Z-Height:    {status['z-height']}
-        % complete:  {status['progress']*100:.1f}
-        t complete:  {finishmessage}
+        % done:      {status['progress']*100:.1f}
+        time to end: {finishmessage}
         Start time:  {status['time_started']} ({formatsecondduration(status['alreadyprinted'])} ago)
-        Nozzle temp: {status['temperature']['nozzle']} / {status['targettemperature']['nozzle']}
-        Bed temp:    {status['temperature']['bed']} / {status['targettemperature']['bed']}
+        Nozzle temp: {status['temperature']['nozzle']}\U000000B0 / {status['targettemperature']['nozzle']}\U000000B0
+        Bed temp:    {status['temperature']['bed']}\U000000B0 / {status['targettemperature']['bed']}\U000000B0
         </pre>
     """)
 
 
 def main_loop(state, settings):
-    messages = []
     for m in settings:
         print(f"Doing {m['printer']}")
         handler = f"protocol_{m['api']}"
         handler = globals()[handler]
         limit = m['statusinterval']
-        currentstate = handler(m)
 
         laststate = state[m['printer']]
-
+        currentstate = laststate.copy()
+        handleroutput = handler(m)
+        currentstate.update(handleroutput)
         print(f"Current state: {currentstate}")
         debuglog(f"Current state: {currentstate}")
 
-        print(f"currentstate: [{currentstate['printstate']}]. previous printstate: [{laststate['printstate']}]")
+        print(f"current printstate: [{currentstate['printstate']}]. previous printstate: [{laststate['printstate']}]")
         forcemessage = False
+
         if currentstate['printstate'] == 'printing' and laststate['printstate'] == 'printing':    
             print("outputting ongoing print job")
             message = statusmessage(f"Printjob in progress on {m['printer']}", currentstate)
-            messages.append(message)
-            #sendmessage(message)
         elif currentstate['printstate'] == 'printing' and laststate['printstate'] != 'printing':
             forcemessage = True
             print(f"outputting start of print job {m['printer']}")
             message = statusmessage(f"Printjob started on {m['printer']}", currentstate)
-            messages.append(message)
-            #sendmessage(message)
         elif currentstate['printstate'] != 'printing' and laststate['printstate'] == 'printing':
             forcemessage = True
             print(f"outputting end of print job {m['printer']}")
             message = statusmessage(f"Printjob ended on {m['printer']}", currentstate)
-            messages.append(message)
-            #sendmessage(message)
+            laststate['cooldowntimeout'] = datetime.now() + timedelta(seconds=settings['cooldowntimeout'])
+        elif currentstate['printstate'] == 'idle' and laststate['printstate'] == 'idle' and 'cooldowntimeout' in currentstate:
+            message = statusmessage(f"Cooling down on {m['printer']}", currentstate)
+            if currentstate['cooldowntimeout'] < datetime.now():
+                del currentstate['cooldowntimeout']
+                message = statusmessage(f"Final cool down on {m['printer']}", currentstate)
         else:
             print("no messaging needed")
             # Break from rest of loop since no message needs to be sent
@@ -233,8 +255,6 @@ def main_loop(state, settings):
         try:
             timesincelastmessage = (datetime.now() - laststate['lastsend']).total_seconds()
         except Exception as exc:
-            print(traceback.format_exc())
-            print(exc)
             timesincelastmessage = -1
 
         print(f"Time since last: {timesincelastmessage}")
