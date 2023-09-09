@@ -148,7 +148,7 @@ def protocol_octoprint(printerinfo):
             printTime = 0
 
         try:
-            printTimeLeft = job['progress']['printTimeLeft']
+            printTimeLeft = int(job['progress']['printTimeLeft'])
         except:
             printTimeLeft = 0
 
@@ -213,7 +213,7 @@ def statusmessage(headerline,status):
     """)
 
 
-def main_loop(state, settings):
+def main_loop(state, settings, globalsettings):
     for m in settings:
         print(f"Doing {m['printer']}")
         handler = f"protocol_{m['api']}"
@@ -241,7 +241,7 @@ def main_loop(state, settings):
             forcemessage = True
             print(f"outputting end of print job {m['printer']}")
             message = statusmessage(f"Printjob ended on {m['printer']}", currentstate)
-            laststate['cooldowntimeout'] = datetime.now() + timedelta(seconds=settings['cooldowntimeout'])
+            laststate['cooldowntimeout'] = datetime.now() + timedelta(seconds=globalsettings['cooldowntimeout'])
         elif currentstate['printstate'] == 'idle' and laststate['printstate'] == 'idle' and 'cooldowntimeout' in currentstate:
             message = statusmessage(f"Cooling down on {m['printer']}", currentstate)
             if currentstate['cooldowntimeout'] < datetime.now():
@@ -276,7 +276,7 @@ def main():
     state=init_states(settings=settings['printers'])
 
     while True:
-        main_loop(state=state, settings=settings['printers'])
+        main_loop(state=state, settings=settings['printers'], globalsettings=settings['settings'])
         print(f"state is now {state}")
         print(f"Sleeping for {settings['settings']['interval']} seconds")
         time.sleep(settings['settings']['interval'])
