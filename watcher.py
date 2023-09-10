@@ -241,7 +241,7 @@ def main_loop(state, settings, globalsettings):
             forcemessage = True
             print(f"outputting end of print job {m['printer']}")
             message = statusmessage(f"Printjob ended on {m['printer']}", currentstate)
-            laststate['cooldowntimeout'] = datetime.now() + timedelta(seconds=globalsettings['cooldowntimeout'])
+            currentstate['cooldowntimeout'] = datetime.now() + timedelta(seconds=globalsettings['cooldowntimeout'])
         elif currentstate['printstate'] == 'idle' and laststate['printstate'] == 'idle' and 'cooldowntimeout' in currentstate:
             message = statusmessage(f"Cooling down on {m['printer']}", currentstate)
             if currentstate['cooldowntimeout'] < datetime.now():
