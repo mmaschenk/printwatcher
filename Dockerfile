@@ -4,5 +4,6 @@ COPY requirements.txt /
 RUN pip install -r requirements.txt
 
 COPY watcher.py /
+COPY prusalink.py /
 
 CMD python -u /watcher.py
