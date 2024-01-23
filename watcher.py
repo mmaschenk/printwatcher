@@ -247,6 +247,7 @@ def main_loop(state, settings, globalsettings):
             if currentstate['cooldowntimeout'] < datetime.now():
                 del currentstate['cooldowntimeout']
                 message = statusmessage(f"Final cool down on {m['printer']}", currentstate)
+                forcemessage = True
         else:
             print("no messaging needed")
             # Break from rest of loop since no message needs to be sent
