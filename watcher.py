@@ -9,6 +9,7 @@ import requests
 import textwrap
 import octorest
 import traceback
+import lights
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -16,14 +17,23 @@ load_dotenv()
 apiToken = os.getenv('APITOKEN')
 chatID = os.getenv('CHATID')
 apiURL = f'https://api.telegram.org/bot{apiToken}/sendMessage'
+pictureURL = f'https://api.telegram.org/bot{apiToken}/sendPhoto'
 
-def sendmessage(message):
-    print(f"apitoken = [{apiToken}]. chatid = [{chatID}]. apiUrl = [{apiURL}]")
-    response = requests.post(apiURL, json={
+def sendmessage(message, picture=None):
+    print(f"apitoken = [{apiToken}]. chatid = [{chatID}]. apiUrl = [{apiURL}].")
+    if picture:
+        response = requests.post(pictureURL, params={
+            'chat_id': chatID, 
+            'parse_mode': "HTML",
+            'caption': message },
+            files={'photo': picture}
+            )
+    else:
+        response = requests.post(apiURL, json={
             'chat_id': chatID, 
             'parse_mode': "HTML",
             'text': message }
-        )
+            )
     print(f"response = [{response.text}]")
 
 class safedict(dict):
@@ -170,8 +180,8 @@ def protocol_octoprint(printerinfo):
             'jobname': job['job']['file']['name','Unknown'],
         }
     except Exception as exc:
-        print(traceback.format_exc())
-        print(exc)
+        #print(traceback.format_exc())
+        #print(exc)
         state = {
             'printstate': 'unknown',
         }
@@ -212,6 +222,28 @@ def statusmessage(headerline,status):
         </pre>
     """)
 
+def picturethis(config):
+    print(f"Making picture using {config}")
+    controller = None
+    if 'lights' in config:
+        controller_ = getattr(lights,config['lights']['controller'])
+        controller = controller_(config['lights']['arguments'])
+
+        controller.savestate()
+        controller.lights(True)
+
+    time.sleep(1)
+    snapshoturl = config['url']
+    response = requests.get(snapshoturl)
+
+
+    content = None
+    if response.status_code == 200:
+        content = response.content
+    if controller:
+        controller.restorestate()
+
+    return content
 
 def main_loop(state, settings, globalsettings):
     for m in settings:
@@ -261,8 +293,15 @@ def main_loop(state, settings, globalsettings):
         laststate = currentstate
         print(f"Time since last: {timesincelastmessage}")
         if forcemessage or timesincelastmessage > limit:
+            picture = None
+            if 'camera' in m:
+                print("Need to take a picture")
+                picture = picturethis(m['camera'])
+            else:
+                print("No camera defined")
+
             try:
-                sendmessage(message=message)
+                sendmessage(message=message, picture=picture)
                 laststate['lastsend'] = datetime.now()
             except Exception as exc:
                 print(traceback.format_exc())
