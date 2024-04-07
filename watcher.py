@@ -236,7 +236,6 @@ def picturethis(config):
     snapshoturl = config['url']
     response = requests.get(snapshoturl)
 
-
     content = None
     if response.status_code == 200:
         content = response.content
@@ -294,11 +293,14 @@ def main_loop(state, settings, globalsettings):
         print(f"Time since last: {timesincelastmessage}")
         if forcemessage or timesincelastmessage > limit:
             picture = None
-            if 'camera' in m:
-                print("Need to take a picture")
-                picture = picturethis(m['camera'])
-            else:
-                print("No camera defined")
+            try:
+                if 'camera' in m:
+                    print("Need to take a picture")
+                    picture = picturethis(m['camera'])
+                else:
+                    print("No camera defined")
+            except:
+                print("error making picture")
 
             try:
                 sendmessage(message=message, picture=picture)

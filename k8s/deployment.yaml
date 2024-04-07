@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: prusalink-watcher
-        image: ghcr.io/mmaschenk/printwatcher:0.3
+        image: ghcr.io/mmaschenk/printwatcher:0.4
         envFrom:
         - configMapRef:
             name: environment
