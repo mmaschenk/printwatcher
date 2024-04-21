@@ -288,6 +288,7 @@ def main_loop(state, settings, globalsettings):
 
         print(f"current printstate: [{currentstate['printstate']}]. previous printstate: [{laststate['printstate']}]")
         forcemessage = False
+        allowmessage = True
 
         if currentstate['printstate'] == 'printing' and laststate['printstate'] == 'printing':    
             print("outputting ongoing print job")
@@ -308,9 +309,8 @@ def main_loop(state, settings, globalsettings):
                 message = statusmessage(f"Final cool down on {m['printer']}", currentstate)
                 forcemessage = True
         else:
-            print("no messaging needed")
-            # Break from rest of loop since no message needs to be sent
-            continue
+            print("no messaging needed but do publish!")
+            allowmessage = False
 
         try:
             timesincelastmessage = (datetime.now() - laststate['lastsend']).total_seconds()
@@ -319,23 +319,24 @@ def main_loop(state, settings, globalsettings):
 
         laststate = currentstate
         print(f"Time since last: {timesincelastmessage}")
-        if forcemessage or timesincelastmessage > limit:
-            picture = None
-            try:
-                if 'camera' in m:
-                    print("Need to take a picture")
-                    picture = picturethis(m['camera'])
-                else:
-                    print("No camera defined")
-            except:
-                print("error making picture")
+        if allowmessage:
+            if forcemessage or timesincelastmessage > limit:
+                picture = None
+                try:
+                    if 'camera' in m:
+                        print("Need to take a picture")
+                        picture = picturethis(m['camera'])
+                    else:
+                        print("No camera defined")
+                except:
+                    print("error making picture")
 
-            try:
-                sendmessage(message=message, picture=picture)
-                laststate['lastsend'] = datetime.now()
-            except Exception as exc:
-                print(traceback.format_exc())
-                print(exc)
+                try:
+                    sendmessage(message=message, picture=picture)
+                    laststate['lastsend'] = datetime.now()
+                except Exception as exc:
+                    print(traceback.format_exc())
+                    print(exc)
 
         channel.basic_publish(exchange=mqrabbit_exchange, routing_key='', body=json.dumps({ 'machine': m, 'state': laststate}, default=jsonserializer))
 
