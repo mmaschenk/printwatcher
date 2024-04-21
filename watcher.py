@@ -3,13 +3,15 @@
 import os
 import yaml
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from prusalink import prusalink
 import requests
 import textwrap
 import octorest
 import traceback
 import lights
+import pika
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -18,6 +20,25 @@ apiToken = os.getenv('APITOKEN')
 chatID = os.getenv('CHATID')
 apiURL = f'https://api.telegram.org/bot{apiToken}/sendMessage'
 pictureURL = f'https://api.telegram.org/bot{apiToken}/sendPhoto'
+
+mqrabbit_user = os.getenv("MQRABBIT_USER")
+mqrabbit_password = os.getenv("MQRABBIT_PASSWORD")
+mqrabbit_host = os.getenv("MQRABBIT_HOST")
+mqrabbit_vhost = os.getenv("MQRABBIT_VHOST", "/")
+mqrabbit_port = os.getenv("MQRABBIT_PORT")
+mqrabbit_exchange = os.getenv("MQRABBIT_EXCHANGE")
+
+mqrabbit_credentials = pika.PlainCredentials(mqrabbit_user, mqrabbit_password)
+
+mqparameters = pika.ConnectionParameters(
+    host=mqrabbit_host,
+    virtual_host=mqrabbit_vhost,
+    port=mqrabbit_port,
+    credentials=mqrabbit_credentials)
+
+mqconnection = pika.BlockingConnection(mqparameters)
+channel = mqconnection.channel()
+channel.exchange_declare(exchange=mqrabbit_exchange, exchange_type='fanout')
 
 def sendmessage(message, picture=None):
     print(f"apitoken = [{apiToken}]. chatid = [{chatID}]. apiUrl = [{apiURL}].")
@@ -35,6 +56,13 @@ def sendmessage(message, picture=None):
             'text': message }
             )
     print(f"response = [{response.text}]")
+
+def jsonserializer(obj):
+    """JSON serializer for objects not serializable by default json code"""
+
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    raise TypeError ("Type %s not serializable" % type(obj))
 
 class safedict(dict):
     def __getitem__(self, __key):
@@ -308,6 +336,8 @@ def main_loop(state, settings, globalsettings):
             except Exception as exc:
                 print(traceback.format_exc())
                 print(exc)
+
+        channel.basic_publish(exchange=mqrabbit_exchange, routing_key='', body=json.dumps({ 'machine': m, 'state': laststate}, default=jsonserializer))
 
         state[m['printer']] = laststate
 
