@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: prusalink-watcher
-        image: ghcr.io/mmaschenk/printwatcher:0.4
+        image: ghcr.io/mmaschenk/printwatcher:0.5
         envFrom:
         - configMapRef:
             name: environment
@@ -35,3 +35,34 @@ spec:
       - name: watcherconfig
         configMap:
           name: watcherconfig
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: prusalink-rgb
+  name: prusalink-rgb
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: prusalink-rgb
+  template:
+    metadata:
+      labels:
+        app: prusalink-rgb
+    spec:
+      containers:
+      - name: prusalink-rgb
+        image: ghcr.io/mmaschenk/printwatcher:0.5
+        envFrom:
+        - configMapRef:
+            name: environment
+        resources:
+          limits:
+            memory: "100Mi"
+            cpu: "50m"
+        command: [ "python" ]
+        args: [ "-u", "/prusargb.py"]

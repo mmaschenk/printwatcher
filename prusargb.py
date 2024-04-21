@@ -42,6 +42,8 @@ def callback(ch, method, properties, body):
                 statusline = f"{input['machine']['printer']}:CD {state['temperature']['bed']}"
             elif state['printstate'] == 'idle':
                 statusline = f"{input['machine']['printer']}: idle"
+            elif state['printstate'] == 'unknown':
+                statusline = ""
 
             message = { 
                 'type': input['machine']['printer'], 
@@ -52,13 +54,9 @@ def callback(ch, method, properties, body):
                 ],
                 'key': input['machine']['printer'], 
             }
-
             print(f"Going to send: {message}")
-
             m = json.dumps(message)
-
             print(f"json: {m}")
-
             channel.basic_publish(exchange=mqrabbit_rgbexchange, routing_key='*', body=json.dumps(message))
 
         ch.basic_ack(delivery_tag = method.delivery_tag)
