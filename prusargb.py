@@ -37,7 +37,7 @@ def callback(ch, method, properties, body):
 
             state = input['state']
             if state['printstate'] == 'printing':
-                statusline = f"{input['machine']['printer']}:P {state['stillprinting']//3600}:{(state['stillprinting']//60)%60}"
+                statusline = f"{input['machine']['printer']}:P {state['stillprinting']//3600}:{(state['stillprinting']//60)%60:02}"
             elif state['printstate'] == 'idle' and 'cooldowntimeout' in state:
                 statusline = f"{input['machine']['printer']}:CD {state['temperature']['bed']}"
             elif state['printstate'] == 'idle':
